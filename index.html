@@ -126,6 +126,10 @@ if(!S||!Array.isArray(S.rows)){const o=load(OLD);
  else S=clone(SEED)}
 if(!Array.isArray(S.notes))S.notes=[];if(!Array.isArray(S.sal))S.sal=[{from:ALL,val:0}];if(!S.paid)S.paid={};if(!S.pl||Array.isArray(S.pl))S.pl={};
 S.rows.forEach(r=>r.v.forEach(v=>{if(!v.del&&!v.end){const e=parseLast(v.last);if(e)v.end=e}}));
+/* واردکردن یک‌باره‌ی پرداخت‌های بازپرداخت طلای مادر (واحد: سوت) */
+if(!S.impGold){const r=S.rows.find(x=>x.id=='r9')||S.rows.find(x=>x.v.some(v=>String(v.t).trim()=='مادرم'));if(r){r.v.forEach(v=>{if(!v.del)v.plist=1});const L=plOf(r.id);if(!L.total)L.total=58000;L.unit='سوت';if(!Array.isArray(L.items))L.items=[];[["1405/02/30", 156, "۳ میلیون تومان | قیمت هر گرم: ۱۹۰٬۰۰۰"], ["1405/03/31", 186, "۳ میلیون تومان | قیمت هر گرم: ۱۶۰٬۱۶۰"], ["1405/04/30", 162, "۳ میلیون تومان | قیمت هر گرم: ۱۸٬۳۸۵"], ["1405/05/28", 151, "۳ میلیون تومان | قیمت هر گرم: ۱۹٬۷۷۰"], ["1405/06/30", 126, "۳ میلیون تومان | قیمت هر گرم: ۲۳٬۶۹۰"], ["1405/08/01", 114, "۳ میلیون تومان | قیمت هر گرم: ۲۶٬۱۵۰"], ["1405/09/01", 127, "۳ میلیون تومان | قیمت هر گرم: ۲۳٬۳۷۹"]].forEach(a=>{if(!L.items.some(x=>x.date==a[0]))L.items.push({date:a[0],amt:a[1],note:a[2]})});S.impGold=1}}
+/* واردکردن یک‌باره‌ی پرداخت‌های بازپرداخت طلای مادرخانم (واحد: سوت) */
+if(!S.impGold2){const r=S.rows.find(x=>x.id=='r10')||S.rows.find(x=>x.v.some(v=>String(v.t).trim()=='مادر زهرا'));if(r){r.v.forEach(v=>{if(!v.del)v.plist=1});const L=plOf(r.id);if(!L.total)L.total=185000;L.unit='سوت';if(!Array.isArray(L.items))L.items=[];[["1405/05/29", 252, "۵ میلیون تومان | قیمت هر گرم: ۱۹٬۷۷۰"], ["1405/06/30", 210, "۵ میلیون تومان | قیمت هر گرم: ۲۳٬۶۹۰"], ["1405/08/01", 190, "۵ میلیون تومان | قیمت هر گرم: ۲۶٬۱۵۰"], ["1405/09/01", 212, "۵ میلیون تومان | قیمت هر گرم: ۲۳٬۳۷۹"]].forEach(a=>{if(!L.items.some(x=>x.date==a[0]))L.items.push({date:a[0],amt:a[1],note:a[2]})});S.impGold2=1}}
 let svT=0;const flush=()=>{clearTimeout(svT);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('⚠ ذخیره‌سازی ناموفق بود.')}},save=()=>{clearTimeout(svT);svT=setTimeout(flush,150)};
 addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='hidden')flush()});
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2200)}
@@ -171,7 +175,7 @@ function vEdit(){const d=D;return top(d._new?'هزینه‌ی جدید':'ویر�
  <button class="bt" data-a="save">💾 ذخیره</button>${d._new?'':'<button class="bt r" data-a="del">🗑 حذف از این ماه به بعد</button>'}`}
 function vPl(){const id=P.id,L=plOf(id),paid=plPaid(id),rem=L.total-paid,pc=L.total?Math.min(100,Math.round(paid/L.total*100)):0;
  let h=top(E(rowTitle(id)));
- h+=`<div class="k"><label class="f" style="margin-top:0">مبلغ کل (هزار تومان)</label><input id="plTot" inputmode="decimal" value="${L.total?String(L.total):''}" placeholder="مثلاً ۲۰۰۰۰"></div>`;
+ h+=`<div class="k"><label class="f" style="margin-top:0">مبلغ کل (${E(L.unit||'هزار تومان')})</label><input id="plTot" inputmode="decimal" value="${L.total?String(L.total):''}" placeholder="مثلاً ۲۰۰۰۰"></div>`;
  h+=`<div class="g3"><div class="st"><small>جمع پرداختی</small><b id="plP">${mny(paid)}</b></div><div class="st ${rem<0?'bad':'good'}"><small>باقی‌مانده</small><b id="plR">${mny(rem)}</b></div><div class="st"><small>تعداد پرداخت</small><b id="plN">${fd((L.items||[]).length)}</b></div></div><div class="pgb"><i id="plB" style="width:${pc}%"></i></div>`;
  h+=`<div class="mx"><table class="tb" style="min-width:420px"><thead><tr><th class="s1">ردیف</th><th>تاریخ</th><th>مبلغ پرداخت</th><th>توضیحات</th></tr></thead><tbody>`;
  if(!(L.items||[]).length)h+='<tr><td colspan="4" class="emp">هنوز پرداختی ثبت نشده است.</td></tr>';
@@ -179,7 +183,7 @@ function vPl(){const id=P.id,L=plOf(id),paid=plPaid(id),rem=L.total-paid,pc=L.to
  h+=`</tbody><tfoot><tr><td class="s1"></td><td>جمع پرداختی</td><td class="pay" id="plF">${mny(paid)}</td><td></td></tr></tfoot></table></div>`;
  return h+`<button class="fab" data-a="pnew">➕ پرداخت جدید</button>`}
 function vPe(){const d=D;return top(d._new?'پرداخت جدید':'ویرایش پرداخت')+`<div class="k"><label class="f" style="margin-top:0">تاریخ پرداخت</label><button class="dpb" style="width:100%" data-a="dpo:pd">📅 ${fmtEnd(d.date)||'انتخاب از تقویم'}</button>
- <label class="f">مبلغ پرداخت (هزار تومان)</label><input data-f="amt" inputmode="decimal" value="${E(d.amt)}" placeholder="مثلاً ۱۷۰۰">
+ <label class="f">مبلغ پرداخت (${E(plOf(d.pid).unit||'هزار تومان')})</label><input data-f="amt" inputmode="decimal" value="${E(d.amt)}" placeholder="مثلاً ۱۷۰۰">
  <label class="f">توضیحات</label><input data-f="note" value="${E(d.note)}"></div>
  <button class="bt" data-a="psave">💾 ذخیره</button>${d._new?'':'<button class="bt r" data-a="pdel">🗑 حذف این پرداخت</button>'}`}
 function vNote(){return top(D._new?'یادداشت جدید':'ویرایش یادداشت')+`<div class="k"><textarea data-f="text" placeholder="متن یادداشت">${E(D.text)}</textarea></div><button class="bt" data-a="noteSave">💾 ذخیره</button>${D._new?'':'<button class="bt r" data-a="noteDel">🗑 حذف</button>'}`}
