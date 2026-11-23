@@ -95,6 +95,13 @@ label.f{display:block;font-size:13px;color:var(--m);margin-top:8px}
 @media(prefers-color-scheme:dark){.lk{color:#7db4ff}}
 .tb tr.pl td{background:color-mix(in srgb,#2563eb 9%,var(--c))}.tb .s2 small.bl{color:#1d4ed8}
 .pgb{height:10px;background:var(--l);border-radius:8px;overflow:hidden;margin:0 0 12px}.pgb i{display:block;height:100%;background:var(--ok);border-radius:8px}
+.plh{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.pen{width:42px;height:42px;border-radius:50%;border:2px solid var(--l);background:var(--c);font-size:20px;line-height:1;cursor:pointer;padding:0;flex:none;color:var(--t)}
+.pen.on{background:var(--a);border-color:var(--a);color:#fff;box-shadow:0 0 0 4px color-mix(in srgb,var(--a) 22%,transparent)}
+.plh small{color:var(--m);font-size:12.5px;line-height:1.5}
+.tb.ed tbody tr{cursor:default}.tb.ed tbody tr:active{background:transparent}
+.tb.ed [contenteditable]{outline:1.5px dashed color-mix(in srgb,var(--a) 70%,transparent);outline-offset:-3px;border-radius:6px;cursor:text;min-width:36px;-webkit-user-select:text;user-select:text}
+.tb.ed [contenteditable]:focus{outline:2px solid var(--a);background:color-mix(in srgb,var(--a) 10%,transparent)}
 </style>
 </head>
 <body><div id="app"></div><div id="dp"></div><div id="toast"></div>
@@ -118,6 +125,11 @@ const fmtEnd=e=>{if(!e)return'';const z=e.split('/').map(Number);return z[2]?fd(
 function parseLast(t){const s=String(t||'').replace(/[۰-۹]/g,c=>c.charCodeAt(0)-1776),y=(s.match(/1[34]\d\d/)||[])[0];if(!y)return'';let m=0;s.split(/[\s،,]+/).forEach(w=>{const i=MON.indexOf(w);if(i>=0)m=i+1});return m?y+'/'+p2(m):''}
 const todayJ=()=>{const p={};pf.formatToParts(new Date()).forEach(x=>p[x.type]=+x.value);return p.year+'/'+p2(p.month)+'/'+p2(p.day)};
 const plOf=id=>S.pl[id]||(S.pl[id]={total:0,items:[]}),plPaid=id=>(plOf(id).items||[]).reduce((a,x)=>a+(+x.amt||0),0);
+const PH={n:'ردیف',date:'تاریخ',amt:'مبلغ پرداخت',note:'توضیحات'},PFT='جمع پرداختی',PEMP='هنوز پرداختی ثبت نشده است.';
+let PE=false,LV='';
+const hd=(L,k)=>(L.hdr&&L.hdr[k])||PH[k],ce=k=>PE?` contenteditable="true" spellcheck="false" data-e="${k}"`:'';
+function parsePD(t){const s=nd(String(t||'')),m=s.match(/^(1[34]\d\d)[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);if(m&&+m[2]>=1&&+m[2]<=12&&+m[3]>=1&&+m[3]<=31)return m[1]+'/'+p2(+m[2])+'/'+p2(+m[3]);const n=s.replace(/ي/g,'ی').replace(/ك/g,'ک').match(/^(\d{1,2})([^\d]+)(1[34]\d\d)$/);if(n){const i=MON.indexOf(n[2]);if(i>=0&&+n[1]>=1&&+n[1]<=31)return n[3]+'/'+p2(i+1)+'/'+p2(+n[1])}return''}
+const pdTxt=x=>x.dtxt!=null?x.dtxt:fmtEnd(x.date);
 function rowTitle(id){const r=S.rows.find(x=>x.id==id);if(!r)return'';const v=cur(r,MK)||r.v[r.v.length-1];return v.t}
 const load=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
 let S=load(KEY);
@@ -177,17 +189,18 @@ function vPl(){const id=P.id,L=plOf(id),paid=plPaid(id),rem=L.total-paid,pc=L.to
  let h=top(E(rowTitle(id)));
  h+=`<div class="k"><label class="f" style="margin-top:0">مبلغ کل (${E(L.unit||'هزار تومان')})</label><input id="plTot" inputmode="decimal" value="${L.total?String(L.total):''}" placeholder="مثلاً ۲۰۰۰۰"></div>`;
  h+=`<div class="g3"><div class="st"><small>جمع پرداختی</small><b id="plP">${mny(paid)}</b></div><div class="st ${rem<0?'bad':'good'}"><small>باقی‌مانده</small><b id="plR">${mny(rem)}</b></div><div class="st"><small>تعداد پرداخت</small><b id="plN">${fd((L.items||[]).length)}</b></div></div><div class="pgb"><i id="plB" style="width:${pc}%"></i></div>`;
- h+=`<div class="mx"><table class="tb" style="min-width:420px"><thead><tr><th class="s1">ردیف</th><th>تاریخ</th><th>مبلغ پرداخت</th><th>توضیحات</th></tr></thead><tbody>`;
- if(!(L.items||[]).length)h+='<tr><td colspan="4" class="emp">هنوز پرداختی ثبت نشده است.</td></tr>';
- h+=(L.items||[]).map((x,i)=>`<tr data-a="pedit:${i}"><td class="s1">${fd(i+1)}</td><td>${E(fmtEnd(x.date))}</td><td class="pay">${mny(x.amt)}</td><td class="ds">${E(x.note)}</td></tr>`).join('');
- h+=`</tbody><tfoot><tr><td class="s1"></td><td>جمع پرداختی</td><td class="pay" id="plF">${mny(paid)}</td><td></td></tr></tfoot></table></div>`;
- return h+`<button class="fab" data-a="pnew">➕ پرداخت جدید</button>`}
+ h+=`<div class="plh"><button class="pen ${PE?'on':''}" data-a="pen" aria-label="${PE?'غیرفعال کردن ویرایش جدول':'ویرایش جدول'}" aria-pressed="${PE}">✏️</button>${PE?'<small>حالت ویرایش فعال است؛ روی هر متن جدول بزنید و تغییر دهید. برای پایان، دوباره مداد را بزنید.</small>':''}</div>`;
+  h+=`<div class="mx"><table class="tb ${PE?'ed':''}" style="min-width:420px"><thead><tr><th class="s1"${ce('h:n')}>${E(hd(L,'n'))}</th><th${ce('h:date')}>${E(hd(L,'date'))}</th><th${ce('h:amt')}>${E(hd(L,'amt'))}</th><th${ce('h:note')}>${E(hd(L,'note'))}</th></tr></thead><tbody>`;
+  if(!(L.items||[]).length)h+=`<tr><td colspan="4" class="emp"${ce('emp')}>${E(L.emp||PEMP)}</td></tr>`;
+  h+=(L.items||[]).map((x,i)=>`<tr ${PE?'':`data-a="pedit:${i}"`}><td class="s1"${ce('c:'+i+':rn')}>${x.rn!=null?E(x.rn):fd(i+1)}</td><td${ce('c:'+i+':date')}>${E(pdTxt(x))}</td><td class="pay"${ce('c:'+i+':amt')}>${mny(x.amt)}</td><td class="ds"${ce('c:'+i+':note')}>${E(x.note)}</td></tr>`).join('');
+  h+=`</tbody><tfoot><tr><td class="s1"></td><td${ce('ft')}>${E(L.ftl||PFT)}</td><td class="pay" id="plF">${mny(paid)}</td><td></td></tr></tfoot></table></div>`;
+  return h+`<button class="fab" data-a="pnew">➕ پرداخت جدید</button>`}
 function vPe(){const d=D;return top(d._new?'پرداخت جدید':'ویرایش پرداخت')+`<div class="k"><label class="f" style="margin-top:0">تاریخ پرداخت</label><button class="dpb" style="width:100%" data-a="dpo:pd">📅 ${fmtEnd(d.date)||'انتخاب از تقویم'}</button>
  <label class="f">مبلغ پرداخت (${E(plOf(d.pid).unit||'هزار تومان')})</label><input data-f="amt" inputmode="decimal" value="${E(d.amt)}" placeholder="مثلاً ۱۷۰۰">
  <label class="f">توضیحات</label><input data-f="note" value="${E(d.note)}"></div>
  <button class="bt" data-a="psave">💾 ذخیره</button>${d._new?'':'<button class="bt r" data-a="pdel">🗑 حذف این پرداخت</button>'}`}
 function vNote(){return top(D._new?'یادداشت جدید':'ویرایش یادداشت')+`<div class="k"><textarea data-f="text" placeholder="متن یادداشت">${E(D.text)}</textarea></div><button class="bt" data-a="noteSave">💾 ذخیره</button>${D._new?'':'<button class="bt r" data-a="noteDel">🗑 حذف</button>'}`}
-function render(){const f={home:vHome,aq:vAq,edit:vEdit,note:vNote,pl:vPl,pe:vPe};$('#app').innerHTML=(f[V]||vHome)();const fab=$('.fab');if(fab)fab.style.display=(V=='aq'||V=='pl')?'':'none'}
+function render(){if(V!=LV){PE=false;LV=V}const f={home:vHome,aq:vAq,edit:vEdit,note:vNote,pl:vPl,pe:vPe};$('#app').innerHTML=(f[V]||vHome)();const fab=$('.fab');if(fab)fab.style.display=(V=='aq'||V=='pl')?'':'none'}
 let DPs={y:1405,m:9};
 function dpDraw(){const{y,m}=DPs,w=(new Date(gt(y,m,1)).getUTCDay()+1)%7,n=mLen(y,m),sel=D&&(DPs.t=='pd'?D.date:D.end)?(DPs.t=='pd'?D.date:D.end).split('/').map(Number):[0,0,0],now=nowMonth().split('/').map(Number);let c='';for(let i=0;i<w;i++)c+='<span></span>';for(let d=1;d<=n;d++){const on=sel[0]==y&&sel[1]==m&&sel[2]==d;c+=`<button class="dd ${on?'on':''}" data-a="dpd:${d}">${fd(d)}</button>`}
  $('#dp').innerHTML=`<div class="dpw" data-a="dpx"><div class="dpc"><div class="dph"><button data-a="dpy:-1">«</button><button data-a="dpm:-1">‹</button><b>${MON[m-1]} ${fd(y)}</b><button data-a="dpm:1">›</button><button data-a="dpy:1">»</button></div><div class="dpg wd">${['ش','ی','د','س','چ','پ','ج'].map(x=>`<span>${x}</span>`).join('')}</div><div class="dpg">${c}</div><button class="bt g" data-a="dpx">بستن</button></div></div>`}
@@ -208,9 +221,10 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
  if(k=='del'){if(!confirm('این ردیف از '+mLab(MK)+' و ماه‌های بعد حذف شود؟\nماه‌های قبل دست‌نخورده می‌ماند.'))return;delFrom(D.id,MK);save();return back()}
  if(k=='plt'){D.plist=D.plist?0:1;return render()}
  if(k=='pl')return go('pl',{id:a[1]});
+ if(k=='pen'){const y=scrollY;PE=!PE;render();scrollTo(0,y);if(!PE)toast('✓ ویرایش جدول بسته شد');return}
  if(k=='pnew'){const r=rowsFor(MK).find(x=>x.id==P.id);D={_new:1,pid:P.id,date:todayJ(),amt:r?String(r.amt):'',note:''};return go('pe')}
  if(k=='pedit'){const it=plOf(P.id).items[+a[1]];if(!it)return;D=Object.assign({pid:P.id,i:+a[1]},clone(it));return go('pe')}
- if(k=='psave'){const v=num(D.amt);if(!D.date)return toast('تاریخ را انتخاب کنید.');if(!v)return toast('مبلغ را وارد کنید.');const L=plOf(D.pid),it={date:D.date,amt:v,note:String(D.note||'').trim()};if(D._new)L.items.push(it);else L.items[D.i]=it;save();toast('✓ ذخیره شد');return back()}
+ if(k=='psave'){const v=num(D.amt);if(!D.date)return toast('تاریخ را انتخاب کنید.');if(!v)return toast('مبلغ را وارد کنید.');const L=plOf(D.pid),it={date:D.date,amt:v,note:String(D.note||'').trim()};if(!D._new&&D.rn!=null)it.rn=D.rn;if(D._new)L.items.push(it);else L.items[D.i]=it;save();toast('✓ ذخیره شد');return back()}
  if(k=='pdel'){if(!confirm('این پرداخت حذف شود؟'))return;plOf(D.pid).items.splice(D.i,1);save();return back()}
  if(k=='rd'){const x=rowsFor(MK).find(r=>r.id==a[1]);if(!x)return;if(!confirm('قسط «'+x.t+'» از '+mLab(MK)+' و ماه‌های بعد حذف شود؟\nماه‌های قبل دست‌نخورده می‌ماند.'))return;delFrom(x.id,MK);save();toast('✓ حذف شد');return render()}
  if(k=='dpo'){const t=a[1]||'end',z=((t=='pd'?D.date:D.end)||MK).split('/').map(Number);DPs={y:z[0],m:z[1],t};return dpDraw()}
@@ -224,6 +238,19 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
  if(k=='noteSave'){const t=String(D.text||'').trim();if(!t)return toast('متن را بنویسید.');if(D._new)S.notes.push(t);else S.notes[D.i]=t;save();return back()}
  if(k=='noteDel'){if(!confirm('این یادداشت حذف شود؟'))return;S.notes.splice(D.i,1);save();return back()}
 });
+function plRefresh(){const id=P.id,L=plOf(id),pd=plPaid(id),r=L.total-pd,q=(i,t)=>{const e=$('#'+i);if(e)e.textContent=t};q('plP',mny(pd));q('plF',mny(pd));q('plR',mny(r));q('plN',fd((L.items||[]).length));const b=$('#plR');if(b)b.parentNode.className='st '+(r<0?'bad':'good');const g=$('#plB');if(g)g.style.width=(L.total?Math.min(100,Math.round(pd/L.total*100)):0)+'%'}
+document.addEventListener('focusout',e=>{const el=e.target;if(!PE||V!='pl'||!el.dataset||!el.dataset.e)return;const L=plOf(P.id),k=el.dataset.e.split(':'),t=el.textContent.replace(/\s+/g,' ').trim();
+ if(k[0]=='h'){L.hdr=L.hdr||{};if(t&&t!=PH[k[1]])L.hdr[k[1]]=t;else delete L.hdr[k[1]];el.textContent=hd(L,k[1])}
+ else if(k[0]=='ft'){if(t&&t!=PFT)L.ftl=t;else delete L.ftl;el.textContent=L.ftl||PFT}
+ else if(k[0]=='emp'){if(t&&t!=PEMP)L.emp=t;else delete L.emp;el.textContent=L.emp||PEMP}
+ else if(k[0]=='c'){const x=(L.items||[])[+k[1]];if(!x)return;const f=k[2];
+  if(f=='rn'){if(t&&t!=fd(+k[1]+1))x.rn=t;else delete x.rn;el.textContent=x.rn!=null?x.rn:fd(+k[1]+1)}
+  else if(f=='date'){const d=parsePD(t);if(d){x.date=d;delete x.dtxt}else x.dtxt=t;el.textContent=pdTxt(x)}
+  else if(f=='amt'){if(/[0-9۰-۹٠-٩]/.test(t)){x.amt=num(t);plRefresh()}el.textContent=mny(x.amt)}
+  else if(f=='note'){x.note=t;el.textContent=t}}
+ save()});
+document.addEventListener('keydown',e=>{if(PE&&e.key=='Enter'&&e.target.dataset&&e.target.dataset.e){e.preventDefault();e.target.blur()}});
+document.addEventListener('paste',e=>{if(PE&&e.target.dataset&&e.target.dataset.e){e.preventDefault();document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text').replace(/\s+/g,' '))}});
 render();
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 window.__fin={plOf,plPaid,mLen,gt,parseLast,fmtEnd,S:()=>S,calc,rowsFor,salFor,nowMonth,setMK:m=>{MK=m}};
