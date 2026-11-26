@@ -38,7 +38,7 @@ html,body{margin:0}body{background-color:var(--bg);background-image:var(--bgi);b
 .top>*{position:relative}.top b{font-size:18px;flex:1}.top small{display:block;font-size:12px;opacity:.9;font-weight:400}
 .top .tt{flex:1;min-width:0;font-size:17px;font-weight:800;background:#ffffff1f;border-radius:14px;padding:5px 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top .bkh{background:#ffffff26;color:#fff;border:0;border-radius:12px;width:40px;height:40px;font-size:20px;padding:0}
-.top .bb{flex:0 0 auto}.logo{width:42px;height:42px;flex:0 0 42px;border-radius:12px}
+.top .bb{flex:0 1 auto;min-width:0}.top .bb small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.logo{width:42px;height:42px;flex:0 0 42px;border-radius:12px}
 .k{background:var(--c);border:1px solid var(--l);border-radius:16px;padding:14px;margin-bottom:12px}
 .k h3{margin:0 0 8px;font-size:16.5px}.m{color:var(--m);font-size:13.5px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}.g3.g4{grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}.g4 .st small{font-size:11px}.g4 .st b{font-size:17px}
@@ -208,7 +208,7 @@ function prog(mk){const R=rowsFor(mk),pd=paidOf(mk);let a=0,b=0,c=0,d=0;R.forEac
 function allDone(mk){const R=rowsFor(mk),pd=paidOf(mk);return R.length>0&&R.every(x=>pd[x.id])}
 let anT=0;function autoNext(){clearTimeout(anT);const m=MK;if(!allDone(m))return;anT=setTimeout(()=>{if(V!='aq'||MK!=m||!allDone(m))return;MK=mAdd(m,1);render();window.scrollTo(0,0);toast('✓ همه‌ی موارد '+mLab(m)+' انجام شد؛ رفتیم به '+mLab(MK))},700)}
 const penBtn=()=>`<button class="pen ${PE?'on':''}" data-a="pen" aria-label="${PE?'پایان ویرایش':'ویرایش جدول'}" aria-pressed="${PE}">✏️</button>`;
-function top(t,x){return V=='home'?`<div class="top">${LOGO}<b>${t}<small>مدیریت مالی خانواده</small></b></div>`:`<div class="top"><button class="bkh" data-a="back" aria-label="بازگشت">↩</button><b class="bb">حساب و کتاب<small>ورود و نمایش مبالغ: هزار تومان (مثلاً ۱۲۰۰ = یک میلیون و ۲۰۰ هزار تومان)</small></b><span class="tt">${t}</span>${x||''}</div>`}
+function top(t,x){return V=='home'?`<div class="top">${LOGO}<b>${t}<small>مدیریت مالی خانواده</small></b></div>`:`<div class="top"><button class="bkh" data-a="back" aria-label="بازگشت">↩</button><b class="bb">حساب و کتاب<small>مبالغ: هزار تومان</small></b><span class="tt">${t}</span>${x||''}</div>`}
 function vHome(){const m=nowMonth(),c=calc(m);return top('حساب و کتاب')+`<button class="cd big" data-a="go:aq"><span class="i">💳</span><span><b>اقساط</b><small>${mLab(m)} • باقی‌مانده حقوق: ${mny(c.rem)}</small></span></button><button class="cd big" style="margin-top:12px" data-a="go:car"><span class="i">🚗</span><span><b>سرویس خودرو</b><small>کیلومتر آخرین سرویس و سرویس بعدی هر مورد</small></span></button><button class="cd big" style="margin-top:12px" data-a="go:bk"><span class="i">💾</span><span><b>پشتیبان‌گیری</b><small>${S.lastBk?'آخرین پشتیبان: '+fmtEnd(S.lastBk):'هنوز پشتیبان نگرفته‌اید'}</small></span></button>`}
 function vAq(){const c=calc(MK),R=rowsFor(MK),pd=paidOf(MK),now=nowMonth();
  let h=top('اقساط',AQT=='hist'?'':penBtn())+aqTabs();if(AQT=='hist')return h+vHist();
