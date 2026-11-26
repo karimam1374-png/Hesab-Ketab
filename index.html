@@ -109,6 +109,7 @@ label.f{display:block;font-size:13px;color:var(--m);margin-top:8px}
 @keyframes hold{to{background:color-mix(in srgb,var(--a) 22%,var(--c))}}
 .tb.aq tr.drag td{background:color-mix(in srgb,var(--a) 24%,var(--c));box-shadow:0 5px 14px rgba(0,0,0,.28);position:relative;z-index:2}
 body.dragging{touch-action:none;overscroll-behavior:contain}
+.hl{position:relative;background:var(--c);border:1px solid var(--l);border-radius:14px;padding:10px 12px 10px 46px;margin-bottom:8px}.hl .hb{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.hl .ha{color:var(--bd);font-weight:800;white-space:nowrap}.hl .hm{color:var(--m);font-size:13px;margin-top:3px}.hl .dl{position:absolute;left:6px;top:50%;transform:translateY(-50%)}
 </style>
 </head>
 <body><div id="app"></div><div id="dp"></div><div id="toast"></div>
@@ -159,7 +160,7 @@ let svT=0;const flush=()=>{clearTimeout(svT);try{localStorage.setItem(KEY,JSON.s
 addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='hidden')flush()});
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2200)}
 const LOGO='<img class="logo" src="icon-192.png" alt="">',FIELDS=['n','type','t','amt','desc','last','end','calc','plist'];
-let V='home',P=null,D=null,MK=nowMonth();const ST=[];
+let V='home',P=null,D=null,MK=nowMonth(),AQT='list';const ST=[];
 function go(v,p){ST.push([V,P]);V=v;P=p||null;history.pushState({},'');window.scrollTo(0,0);render()}
 function back(){if(ST.length)history.back();else{V='home';P=null;D=null;render()}}
 addEventListener('popstate',()=>{if(ST.length){const x=ST.pop();V=x[0];P=x[1];D=null;render()}else{V='home';render()}});
@@ -167,12 +168,29 @@ addEventListener('popstate',()=>{if(ST.length){const x=ST.pop();V=x[0];P=x[1];D=
 const byFrom=(a,b)=>a.from<b.from?-1:a.from>b.from?1:0;
 function cur(r,mk){let v=null;for(const x of r.v){if(x.from<=mk)v=x;else break}return v}
 /* ماهی که مانده‌ی لیست پرداخت یک قسط صفر شده (خالی = هنوز صفر نشده)؛ قسط از ماه بعدش حذف می‌شود */
-function zeroMonth(id){const L=S.pl[id];if(!L||!(+L.total>0))return'';const its=(L.items||[]).map(x=>({d:x.date||'',a:+x.amt||0})).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);let c=0;for(const x of its){c+=x.a;if(c>=L.total-1e-9)return x.d?x.d.slice(0,7):nowMonth()}return''}
+function zeroMonth(id){const L=S.pl[id];if(!L||!(+L.total>0))return'';const its=(L.items||[]).map(x=>({d:x.auto||String(x.date||'').slice(0,7),a:+x.amt||0})).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);let c=0;for(const x of its){c+=x.a;if(c>=L.total-1e-9)return x.d||nowMonth()}return''}
 /* قبل از آبان ۱۴۰۵ قسطی وجود ندارد */
 const MINM='1405/08';
 function rowsFor(mk){const o=[];if(mk<MINM)return o;S.rows.forEach(r=>{const v=cur(r,mk);if(v&&!v.del&&!(v.end&&mk>v.end.slice(0,7))&&!(v.plist&&(()=>{const z=zeroMonth(r.id);return z&&mk>z})()))o.push(Object.assign({},v,{id:r.id}))});return o.sort((a,b)=>(a.n||0)-(b.n||0))}
 /* ثبت/حذف خودکار ردیف پرداخت در لیست پرداخت، همزمان با تیک‌خوردن قسط در یک ماه */
-function autoPay(id,rw,on,mk,gp){const L=plOf(id);L.items=(L.items||[]).filter(x=>x.auto!=mk);if(!on)return;const a=+rw.amt||0,gold=!!(L.unit&&L.unit!='هزار تومان'),z=mk.split('/').map(Number),dt=mk==nowMonth()?todayJ():mk+'/'+p2(mLen(z[0],z[1]));const it={date:dt,amt:gold?(gp?Math.floor(a/gp*1000):0):a,note:'پرداخت خودکار قسط '+mLab(mk)+(gold&&gp?' | قیمت هر گرم: '+mny(gp):''),auto:mk};if(L.cash)it.tm=a/1000;L.items.push(it)}
+/* ----- سوابق پرداخت: هر بار که یک قسط تیک می‌خورد، روز و تاریخ و ساعت ثبت می‌شود ----- */
+const HDAY=new Intl.DateTimeFormat('fa-IR-u-ca-persian',{weekday:'long'}),HDT=new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn',{year:'numeric',month:'numeric',day:'numeric'}),HTM=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false});
+function hFmt(ts){const d=new Date(ts),p={};HDT.formatToParts(d).forEach(x=>p[x.type]=+x.value);return{day:HDAY.format(d),date:fd(p.day)+' '+MON[p.month-1]+' '+fd(p.year),time:fd(HTM.format(d))}}
+function logHist(id,rw,on,mk,gp){S.hist=(Array.isArray(S.hist)?S.hist:[]).filter(h=>!(h.id==id&&h.mk==mk));if(!on||!rw||rw.type!='pay')return;const h={id,mk,t:rw.t,amt:+rw.amt||0,ts:Date.now()};if(gp)h.gp=gp;S.hist.push(h)}
+const aqTabs=()=>`<div class="seg" style="margin:0 0 10px"><button class="${AQT!='hist'?'on p':''}" data-a="aqt:list">💳 اقساط</button><button class="${AQT=='hist'?'on p':''}" data-a="aqt:hist">🧾 سوابق پرداخت</button></div>`;
+function vHist(){const H=(Array.isArray(S.hist)?S.hist:[]).slice().sort((a,b)=>b.ts-a.ts);if(!H.length)return'<div class="emp">هنوز پرداختی ثبت نشده است.<br><small>از این به بعد، هر قسطی که تیک بزنید همین‌جا با روز، تاریخ و ساعت ثبت می‌شود.</small></div>';
+ const sum=H.reduce((a,x)=>a+(+x.amt||0),0);
+ return`<div class="g3" style="grid-template-columns:1fr 1fr"><div class="st"><small>تعداد پرداخت‌ها</small><b>${fd(H.length)}</b></div><div class="st"><small>جمع مبالغ</small><b>${mny(sum)}</b></div></div>`+H.map(x=>{const f=hFmt(x.ts);return`<div class="hl"><div class="hb"><b>${E(x.t)}</b><span class="ha">${mny(x.amt)}</span></div><div class="hm">${f.day}، ${f.date} — ساعت ${f.time}</div><div class="hm">قسط ماه ${mLab(x.mk)}${x.gp?' • قیمت هر گرم: '+mny(x.gp):''}</div><button class="dl" data-a="hd:${x.ts}" aria-label="حذف از سوابق">🗑</button></div>`}).join('')}
+/* ----- تیک‌خوردن قسط؛ برای اقساط طلایی (سوتی) مبلغ و قیمت هر گرم از پنجره‌ی پرسش می‌آید ----- */
+let GM=null;
+function gmCalc(){const e=$('#gmS');if(!e)return;const am=num($('#gmA').value);let pr=num($('#gmP').value);if(pr>=1e6)pr=pr/1000;e.textContent=(am>0&&pr>0)?'سوت: '+fd(Math.floor(am/pr*1000))+' (معادل '+fd((Math.round(am/pr*1000)/1000).toFixed(3))+' گرم طلا)':'سوت: —'}
+function goldAsk(w,id){GM={id,mk:MK};let g=document.getElementById('gm');if(!g){g=document.createElement('div');g.id='gm';document.body.appendChild(g)}
+ g.innerHTML=`<div class="dpw" data-a="gmx"><div class="dpc"><b style="font-size:17px">${E(w.t)} — ${mLab(MK)}</b><label class="f">مبلغ پرداخت (هزار تومان)</label><input id="gmA" inputmode="numeric" value="${E(String(w.amt))}"><div class="m">مبلغ تعیین‌شده: ${mny(w.amt)}؛ اگر امروز مبلغ دیگری (مثلاً بیشتر) می‌پردازید همین‌جا تغییر دهید.</div><label class="f">قیمت هر گرم طلا (هزار تومان؛ مثلاً ۲۶۱۵۰)</label><input id="gmP" inputmode="numeric" placeholder="${S.gp?'آخرین قیمت: '+E(mny(S.gp)):''}"><div id="gmS" class="hint" style="margin-top:10px">سوت: —</div><button class="bt" data-a="gmok">✓ ثبت پرداخت</button><button class="bt g" data-a="gmx">انصراف</button></div></div>`;setTimeout(()=>{const q=$('#gmP');if(q)q.focus()},50)}
+document.addEventListener('input',e=>{if(e.target.id=='gmA'||e.target.id=='gmP')gmCalc()});
+function tick(id,gp,ca,el){const m=S.paid[MK]=S.paid[MK]||{};if(m[id])delete m[id];else m[id]=1;if(!Object.keys(m).length)delete S.paid[MK];const on=!!(S.paid[MK]&&S.paid[MK][id]),rw=rowsFor(MK).find(r=>r.id==id),rx=(ca>0&&rw)?Object.assign({},rw,{amt:ca}):rw;logHist(id,rx,on,MK,gp);
+ if(rw&&rw.plist&&rw.type=='pay'){autoPay(id,rx,on,MK,gp);save();toast(on?'✓ یک ردیف پرداخت در لیست پرداخت ثبت شد':'ردیف پرداخت خودکار از لیست پرداخت حذف شد');render();if(on)autoNext();return}
+ save();if(el){el.classList.toggle('on',on);el.textContent=on?'✓':'';const tr=el.closest('tr');if(tr)tr.classList.toggle('dn',on)}const g=$('#pgT');if(g)g.textContent=prog(MK);if(on)autoNext()}
+function autoPay(id,rw,on,mk,gp){const L=plOf(id);L.items=(L.items||[]).filter(x=>x.auto!=mk);if(!on)return;const a=+rw.amt||0,gold=!!(L.unit&&L.unit!='هزار تومان'),z=mk.split('/').map(Number),dt=todayJ();const it={date:dt,amt:gold?(gp?Math.floor(a/gp*1000):0):a,note:'پرداخت خودکار قسط '+mLab(mk)+(gold&&gp?' | قیمت هر گرم: '+mny(gp):''),auto:mk};if(L.cash)it.tm=a/1000;L.items.push(it)}
 function salFor(mk){let v=0;S.sal.slice().sort(byFrom).forEach(x=>{if(x.from<=mk)v=+x.val||0});return v}
 function setSal(mk,val){S.sal=S.sal.filter(x=>x.from<mk);S.sal.push({from:mk,val})}
 function applyEdit(id,mk,rec){const r=S.rows.find(x=>x.id==id),c=cur(r,mk),ch=FIELDS.filter(f=>rec[f]!==c[f]),nv=Object.assign({from:mk},rec),i=r.v.findIndex(x=>x.from==mk);
@@ -187,7 +205,7 @@ let anT=0;function autoNext(){clearTimeout(anT);const m=MK;if(!allDone(m))return
 function top(t,x){return V=='home'?`<div class="top">${LOGO}<b>${t}<small>مدیریت مالی خانواده</small></b></div>`:`<div class="top"><button class="bkh" data-a="back" aria-label="بازگشت">↩</button><b class="bb">حساب و کتاب<small>همه‌ی مبالغ به هزار تومان</small></b><span class="tt">${t}</span>${x||''}</div>`}
 function vHome(){const m=nowMonth(),c=calc(m);return top('حساب و کتاب')+`<button class="cd big" data-a="go:aq"><span class="i">💳</span><span><b>اقساط</b><small>${mLab(m)} • باقی‌مانده حقوق: ${mny(c.rem)}</small></span></button><button class="cd big" style="margin-top:12px" data-a="go:car"><span class="i">🚗</span><span><b>سرویس خودرو</b><small>کیلومتر آخرین سرویس و سرویس بعدی هر مورد</small></span></button><button class="cd big" style="margin-top:12px" data-a="go:bk"><span class="i">💾</span><span><b>پشتیبان‌گیری</b><small>${S.lastBk?'آخرین پشتیبان: '+fmtEnd(S.lastBk):'هنوز پشتیبان نگرفته‌اید'}</small></span></button>`}
 function vAq(){const c=calc(MK),R=rowsFor(MK),pd=paidOf(MK),now=nowMonth();
- let h=top('اقساط');
+ let h=top('اقساط')+aqTabs();if(AQT=='hist')return h+vHist();
  h+=`<div class="mn"><button class="nv" data-a="mon:-1"${MK<=MINM?' disabled style="opacity:.35"':''}>→ ماه قبل</button><div class="mt">${mLab(MK)}<small id="pgT">${prog(MK)}</small>${MK!=now?`<button class="td" data-a="mon:0">برگشت به ${mLab(now)}</button>`:''}</div><button class="nv" data-a="mon:1">ماه بعد ←</button></div>`;
  h+=`<div class="k"><label class="f" style="margin-top:0">دریافتی ماهیانه (حقوق) — ${mLab(MK)}</label><input id="sal" inputmode="numeric" value="${c.sal?String(c.sal):''}" placeholder="مثلاً ۱۷۹۰۰"></div>`;
  h+=`<div class="g3"><div class="st"><small>جمع کسورات و اضافات</small><b id="sDed">${mny(c.ded)}</b></div><div class="st ${c.rem<0?'bad':'good'}" id="sRemBox"><small>باقی‌مانده</small><b id="sRem">${mny(c.rem)}</b></div><div class="st"><small>سهم هر هفته</small><b id="sWk">${mny(c.wk)}</b></div></div>`;
@@ -249,9 +267,11 @@ function liveSum(){const c=calc(MK),s=(i,v)=>{const e=$('#'+i);if(e)e.textConten
 document.addEventListener('input',e=>{const t=e.target;if(t.id=='plTot'){plOf(P.id).total=num(t.value);save();const L=plOf(P.id),pd=plPaid(P.id),r=$('#plR');if(r){r.textContent=mny(L.total-pd);r.parentNode.className='st '+(L.total-pd<0?'bad':'good')}const b=$('#plB');if(b)b.style.width=(L.total?Math.min(100,Math.round(pd/L.total*100)):0)+'%';return}if(t.id=='sal'){setSal(MK,num(t.value));save();liveSum();return}if(t.dataset&&t.dataset.c){const[f,id]=t.dataset.c.split(':'),x=S.car.items.find(q=>q.id==id);if(!x)return;const raw=nd(t.value).trim();if(f=='km')x.km=raw===''?null:num(raw);else x.iv=num(raw);if(x.dn){delete x.dn;delete x.prev;const b=document.querySelector('[data-a="cdone:'+id+'"]');if(b){b.classList.remove('on');b.textContent=''}}save();const c=$('#cn-'+id);if(c)c.textContent=cnext(x);return}if(t.dataset&&t.dataset.f&&D)D[t.dataset.f]=t.value});
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;const a=el.dataset.a.split(':'),k=a[0];
  if(k=='bkd')return bkDownload();if(k=='bks')return bkShare();if(k=='bkc')return bkCopy();if(k=='bkr'){const x=$('#bkTx');return bkRestore(x?x.value.trim():'')}
- if(k=='go')return go(a[1]);if(k=='back')return back();
+ if(k=='go'){if(a[1]=='aq')AQT='list';return go(a[1])}if(k=='aqt'){AQT=a[1]=='hist'?'hist':'list';window.scrollTo(0,0);return render()}if(k=='hd'){if(!confirm('این مورد از سوابق حذف شود؟\n(تیک قسط و لیست پرداخت تغییری نمی‌کند)'))return;S.hist=(S.hist||[]).filter(h=>String(h.ts)!=a[1]);save();const y=scrollY;render();scrollTo(0,y);return}if(k=='back')return back();
  if(k=='mon'){let n=a[1]=='0'?nowMonth():mAdd(MK,+a[1]);if(n<MINM)n=MINM;MK=n;return render()}
- if(k=='pd'){const id=a[1];let gp=0;{const w=rowsFor(MK).find(r=>r.id==id),L0=S.pl[id],was=!!(S.paid[MK]&&S.paid[MK][id]);if(w&&w.plist&&w.type=='pay'&&!was&&L0&&L0.unit&&L0.unit!='هزار تومان'){const s=prompt('قیمت هر گرم طلا را وارد کنید (هزار تومان؛ مثلاً ۲۶۱۵۰) — '+mLab(MK)+':','');if(s===null)return;let v=num(s);if(v>=1e6)v=v/1000;if(!(v>0))return toast('قیمت معتبر وارد نشد؛ تیک ثبت نشد.');gp=v;S.gp=v}}const m=S.paid[MK]=S.paid[MK]||{};if(m[id])delete m[id];else m[id]=1;if(!Object.keys(m).length)delete S.paid[MK];const on=!!(S.paid[MK]&&S.paid[MK][id]),rw=rowsFor(MK).find(r=>r.id==id);if(rw&&rw.plist&&rw.type=='pay'){autoPay(id,rw,on,MK,gp);save();toast(on?'✓ یک ردیف پرداخت در لیست پرداخت ثبت شد':'ردیف پرداخت خودکار از لیست پرداخت حذف شد');render();if(on)autoNext();return}save();el.classList.toggle('on',on);el.textContent=on?'✓':'';const tr=el.closest('tr');if(tr)tr.classList.toggle('dn',on);const g=$('#pgT');if(g)g.textContent=prog(MK);if(on)autoNext();return}
+ if(k=='pd'){const id=a[1],w=rowsFor(MK).find(r=>r.id==id),L0=S.pl[id],was=!!(S.paid[MK]&&S.paid[MK][id]);if(w&&w.plist&&w.type=='pay'&&!was&&L0&&L0.unit&&L0.unit!='هزار تومان')return goldAsk(w,id);return tick(id,0,0,el)}
+ if(k=='gmx'){if(el.classList.contains('dpw')&&e.target!==el)return;GM=null;const g=$('#gm');if(g)g.innerHTML='';return}
+ if(k=='gmok'){if(!GM)return;const am=num($('#gmA').value);let pr=num($('#gmP').value);if(pr>=1e6)pr=pr/1000;if(!(am>0))return toast('مبلغ معتبر وارد کنید.');if(!(pr>0))return toast('قیمت هر گرم را وارد کنید.');const g=GM;GM=null;$('#gm').innerHTML='';if(g.mk!=MK||V!='aq')return;S.gp=pr;return tick(g.id,pr,am)}
  if(k=='new'){const mx=rowsFor(MK).reduce((m,x)=>Math.max(m,x.n||0),0);D={_new:1,id:uid(),n:mx+1,type:'pay',t:'',amt:'',desc:'',last:'',end:'',calc:1,plist:0};return go('edit')}
  if(k=='edit'){const x=rowsFor(MK).find(r=>r.id==a[1]);if(!x)return;D=clone(x);D.calc=isOff(x)?0:1;D.plist=x.plist?1:0;return go('edit')}
  if(k=='ty'){D.type=a[1];return render()}
@@ -266,7 +286,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
  if(k=='pen'){const y=scrollY;PE=!PE;render();scrollTo(0,y);if(!PE)toast('✓ ویرایش جدول بسته شد');return}
  if(k=='pnew'){const r=rowsFor(MK).find(x=>x.id==P.id);D={_new:1,pid:P.id,date:todayJ(),amt:r?String(r.amt):'',tm:'',note:''};return go('pe')}
  if(k=='pedit'){const it=plOf(P.id).items[+a[1]];if(!it)return;D=Object.assign({pid:P.id,i:+a[1]},clone(it));return go('pe')}
- if(k=='psave'){const v=num(D.amt);if(!D.date)return toast('تاریخ را انتخاب کنید.');if(!v)return toast('مبلغ را وارد کنید.');const L=plOf(D.pid),it={date:D.date,amt:v,note:String(D.note||'').trim()};if(L.cash&&String(D.tm==null?'':D.tm).trim()!=='')it.tm=num(D.tm);if(!D._new&&D.rn!=null)it.rn=D.rn;if(D._new)L.items.push(it);else L.items[D.i]=it;save();toast('✓ ذخیره شد');return back()}
+ if(k=='psave'){const v=num(D.amt);if(!D.date)return toast('تاریخ را انتخاب کنید.');if(!v)return toast('مبلغ را وارد کنید.');const L=plOf(D.pid),it={date:D.date,amt:v,note:String(D.note||'').trim()};if(L.cash&&String(D.tm==null?'':D.tm).trim()!=='')it.tm=num(D.tm);if(!D._new&&D.rn!=null)it.rn=D.rn;if(!D._new&&D.auto!=null)it.auto=D.auto;if(D._new)L.items.push(it);else L.items[D.i]=it;save();toast('✓ ذخیره شد');return back()}
  if(k=='pdel'){if(!confirm('این پرداخت حذف شود؟'))return;plOf(D.pid).items.splice(D.i,1);save();return back()}
  if(k=='rd'){const x=rowsFor(MK).find(r=>r.id==a[1]);if(!x)return;if(!confirm('قسط «'+x.t+'» از '+mLab(MK)+' و ماه‌های بعد حذف شود؟\nماه‌های قبل دست‌نخورده می‌ماند.'))return;delFrom(x.id,MK);save();toast('✓ حذف شد');return render()}
  if(k=='dpo'){const t=a[1]||'end',z=((t=='pd'?D.date:D.end)||MK).split('/').map(Number);DPs={y:z[0],m:z[1],t};return dpDraw()}
