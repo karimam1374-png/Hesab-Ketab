@@ -104,6 +104,11 @@ label.f{display:block;font-size:13px;color:var(--m);margin-top:8px}
 .ib{border:0;background:var(--soft);color:var(--a);border-radius:10px;width:32px;height:32px;font-size:15px;padding:0;margin-inline-start:4px}.ci{width:78px;margin:0;padding:6px 4px;text-align:center;font-size:15px;border-radius:10px}.tb.ed tbody tr{cursor:default}.tb.ed tbody tr:active{background:transparent}
 .tb.ed [contenteditable]{outline:1.5px dashed color-mix(in srgb,var(--a) 70%,transparent);outline-offset:-3px;border-radius:6px;cursor:text;min-width:36px;-webkit-user-select:text;user-select:text}
 .tb.ed [contenteditable]:focus{outline:2px solid var(--a);background:color-mix(in srgb,var(--a) 10%,transparent)}
+.tb.aq tbody tr{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.tb.aq tr.hold td{animation:hold 2.5s linear .5s forwards}
+@keyframes hold{to{background:color-mix(in srgb,var(--a) 22%,var(--c))}}
+.tb.aq tr.drag td{background:color-mix(in srgb,var(--a) 24%,var(--c));box-shadow:0 5px 14px rgba(0,0,0,.28);position:relative;z-index:2}
+body.dragging{touch-action:none;overscroll-behavior:contain}
 </style>
 </head>
 <body><div id="app"></div><div id="dp"></div><div id="toast"></div>
@@ -186,10 +191,10 @@ function vAq(){const c=calc(MK),R=rowsFor(MK),pd=paidOf(MK),now=nowMonth();
  h+=`<div class="mn"><button class="nv" data-a="mon:-1"${MK<=MINM?' disabled style="opacity:.35"':''}>→ ماه قبل</button><div class="mt">${mLab(MK)}<small id="pgT">${prog(MK)}</small>${MK!=now?`<button class="td" data-a="mon:0">برگشت به ${mLab(now)}</button>`:''}</div><button class="nv" data-a="mon:1">ماه بعد ←</button></div>`;
  h+=`<div class="k"><label class="f" style="margin-top:0">دریافتی ماهیانه (حقوق) — ${mLab(MK)}</label><input id="sal" inputmode="numeric" value="${c.sal?String(c.sal):''}" placeholder="مثلاً ۱۷۹۰۰"></div>`;
  h+=`<div class="g3"><div class="st"><small>جمع کسورات و اضافات</small><b id="sDed">${mny(c.ded)}</b></div><div class="st ${c.rem<0?'bad':'good'}" id="sRemBox"><small>باقی‌مانده</small><b id="sRem">${mny(c.rem)}</b></div><div class="st"><small>سهم هر هفته</small><b id="sWk">${mny(c.wk)}</b></div></div>`;
- h+=`<div class="mx"><table class="tb"><thead><tr><th class="s1">ردیف</th><th class="s0"></th><th class="s2">عنوان قسط</th><th>پرداخت</th><th>دریافت</th><th>توضیحات پرداخت</th><th>آخرین قسط</th><th>حذف</th></tr></thead><tbody>`;
+ h+=`<div class="mx"><table class="tb aq"><thead><tr><th class="s1">ردیف</th><th class="s0"></th><th class="s2">عنوان قسط</th><th>پرداخت</th><th>دریافت</th><th>توضیحات پرداخت</th><th>آخرین قسط</th><th>حذف</th></tr></thead><tbody>`;
  if(!R.length)h+='<tr><td colspan="8" class="emp">برای این ماه ردیفی نیست. با «هزینه جدید» اضافه کنید.</td></tr>';
  h+=R.map(x=>{const on=!!pd[x.id],rc=x.type=='rec';return`<tr data-a="edit:${x.id}" class="${isOff(x)?'off':''} ${on?'dn':''} ${x.plist?'pl':''}"><td class="s1">${fd(x.n)}</td><td class="s0"><button class="pc ${rc?'rec':''} ${on?'on':''}" data-a="pd:${x.id}" aria-label="${rc?'دریافت شد':'پرداخت شد'}">${on?'✓':''}</button></td><td class="s2">${x.plist?`<span class="lk" data-a="pl:${x.id}">📋 ${E(x.t)}</span>${plOf(x.id).total?`<small class="bl">مانده: ${mny(plOf(x.id).total-plPaid(x.id))}</small>`:''}`:`<span>${E(x.t)}</span>`}${isOff(x)?'<small>خارج از محاسبه</small>':''}</td><td class="pay">${x.type=='pay'?mny(x.amt):''}</td><td class="rec">${rc?mny(x.amt):''}</td><td class="ds">${E(x.desc)}</td><td class="ds">${E(x.last||fmtEnd(x.end))}</td><td class="s0"><button class="dl" data-a="rd:${x.id}" aria-label="حذف قسط">🗑</button></td></tr>`}).join('');
- h+=`</tbody><tfoot><tr><td class="s1"></td><td class="s0"></td><td class="s2">جمع (در محاسبه)</td><td id="fP" class="pay">${mny(c.p)}</td><td id="fR" class="rec">${mny(c.r)}</td><td colspan="3"></td></tr></tfoot></table></div>`;
+ h+=`</tbody><tfoot><tr><td class="s1"></td><td class="s0"></td><td class="s2">جمع (در محاسبه)</td><td id="fP" class="pay">${mny(c.p)}</td><td id="fR" class="rec">${mny(c.r)}</td><td colspan="3"></td></tr></tfoot></table></div><div class="m" style="padding:4px 6px 0">برای جابه‌جایی، روی هر ردیف ۳ ثانیه نگه دارید، بعد آن را بکشید و در جای دیگر رها کنید.</div>`;
  h+=`<div class="sec">یادداشت‌ها</div>`+(S.notes.length?S.notes.map((t,i)=>`<div class="nt" data-a="noteEdit:${i}"><span>📌 ${E(t)}</span><span style="flex:0 0 auto">✏️</span></div>`).join(''):'<div class="m" style="padding:0 6px">یادداشتی ندارید.</div>')+`<button class="bt g" data-a="noteNew">➕ یادداشت جدید</button>`;
  return h+`<button class="fab" data-a="new">➕ هزینه جدید</button>`}
 function vEdit(){const d=D;return top(d._new?'هزینه‌ی جدید':'ویرایش ردیف')+`<div class="hint">تغییرات از ${mLab(MK)} به بعد اعمال می‌شود؛ ماه‌های قبل دست‌نخورده می‌ماند.</div><div class="k"><label class="f" style="margin-top:0">نوع</label><div class="seg"><button class="p ${d.type=='pay'?'on':''}" data-a="ty:pay">پرداخت</button><button class="r ${d.type=='rec'?'on':''}" data-a="ty:rec">دریافت</button></div>
@@ -301,6 +306,30 @@ document.addEventListener('focusout',e=>{const el=e.target;if(!PE||V!='pl'||!el.
  save()});
 document.addEventListener('keydown',e=>{if(PE&&e.key=='Enter'&&e.target.dataset&&e.target.dataset.e){e.preventDefault();e.target.blur()}});
 document.addEventListener('paste',e=>{if(PE&&e.target.dataset&&e.target.dataset.e){e.preventDefault();document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text').replace(/\s+/g,' '))}});
+/* ----- جابه‌جایی ردیف اقساط: ۳ ثانیه نگه‌داشتن روی ردیف، سپس کشیدن و رها کردن ----- */
+(function(){
+ const HOLD=3000,SEL='table.aq tbody tr[data-a^="edit:"]';let tm=0,iv=0,tr=null,pid=0,sx=0,sy=0,lx=0,ly=0,dg=false,quiet=0;
+ function off(){document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',cn)}
+ function stop(){clearTimeout(tm);clearInterval(iv);off();if(tr)tr.classList.remove('hold','drag');document.body.classList.remove('dragging');tr=null;dg=false}
+ function place(){if(!dg||!tr)return;const t=document.elementFromPoint(lx,ly),o=t&&t.closest&&t.closest(SEL);if(!o||o===tr||o.parentNode!==tr.parentNode)return;const r=o.getBoundingClientRect();o.parentNode.insertBefore(tr,ly<r.top+r.height/2?o:o.nextSibling)}
+ function tick(){const h=innerHeight;if(ly<90)scrollBy(0,-14);else if(ly>h-90)scrollBy(0,14);place()}
+ function mv(e){if(e.pointerId!==pid)return;lx=e.clientX;ly=e.clientY;if(!dg){if(Math.hypot(lx-sx,ly-sy)>12)stop();return}place()}
+ function commit(){const ids=[...tr.parentNode.querySelectorAll(SEL)].map(x=>x.dataset.a.slice(5)),R=rowsFor(MK);if(ids.join()===R.map(x=>x.id).join())return false;
+  let sl=R.map(x=>x.n||0).sort((a,b)=>a-b);if(sl.some((v,i)=>i&&v===sl[i-1]))sl=ids.map((_,i)=>i+1);
+  ids.forEach((id,i)=>{const r=S.rows.find(x=>x.id==id),c=r&&cur(r,MK);if(!c||c.n===sl[i])return;const rec=Object.assign({},c);delete rec.from;rec.n=sl[i];applyEdit(id,MK,rec)});save();return true}
+ function up(e){if(e.pointerId!==pid)return;if(!dg)return stop();quiet=Date.now();const ch=commit();stop();const y=scrollY;render();scrollTo(0,y);toast(ch?'✓ ترتیب از '+mLab(MK)+' به بعد ذخیره شد':'ترتیب تغییری نکرد')}
+ function cn(e){if(e.pointerId!==pid)return;const was=dg;stop();if(was){const y=scrollY;render();scrollTo(0,y)}}
+ document.addEventListener('pointerdown',e=>{
+  if(V!='aq'||(e.pointerType=='mouse'&&e.button!==0))return;
+  const t=e.target.closest&&e.target.closest(SEL);if(!t||e.target.closest('button,.lk'))return;
+  if(t.parentNode.querySelectorAll(SEL).length<2)return;
+  stop();tr=t;pid=e.pointerId;sx=lx=e.clientX;sy=ly=e.clientY;t.classList.add('hold');
+  document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',cn);
+  tm=setTimeout(()=>{if(!tr)return;dg=true;tr.classList.remove('hold');tr.classList.add('drag');document.body.classList.add('dragging');try{navigator.vibrate&&navigator.vibrate(40)}catch(_){}iv=setInterval(tick,16)},HOLD)});
+ document.addEventListener('touchmove',e=>{if(dg&&e.cancelable)e.preventDefault()},{passive:false});
+ document.addEventListener('contextmenu',e=>{if(tr)e.preventDefault()});
+ document.addEventListener('click',e=>{if(Date.now()-quiet<500){e.stopPropagation();e.preventDefault()}},true);
+})();
 render();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
